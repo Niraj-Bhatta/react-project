@@ -1,0 +1,17 @@
+#seeMore a{
+
+  color: #176ecc;          /* blue color */
+  cursor: pointer;         /* pointer on hover */
+  font-weight: 600;
+  display: inline-block;
+  transition: color 0.3s ease;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+#seeMore a:hover {
+  color: #0056b3;          /* darker blue on hover */
+  text-decoration: underline;
+}
+
+
