@@ -8,12 +8,9 @@ export class News extends Component {
 
 
   static defaultProps={
-    country:'us ',
+    country:'us',
     pagesize:8,
-    category:'science'
-
-
-
+    category:'general'
   }
 
  static propTypes = {
@@ -32,19 +29,42 @@ export class News extends Component {
         };
   }
 
-  async componentDidMount() {
-    let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=4ab9fbfc99954701b7283e16992751a9&pageSize=${this.props.pagesize}`;
-
+  async fetchNews(page = 1) {
+    let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=4ab9fbfc99954701b7283e16992751a9&page=${page}&pageSize=${this.props.pagesize}`;
     this.setState({ loading: true });
-    let data = await fetch(url);
-    let parsedData = await data.json(); 
-    // parse the response
-    console.log(parsedData);
-    this.setState({
-      articles: parsedData.articles || [],
-      loading: false,
-      totalResults: parsedData.totalResults,
-    });
+    try {
+      let data = await fetch(url);
+      let parsedData = await data.json();
+      // NewsAPI returns status:'error' for CORS/auth issues on free tier
+      if (parsedData.status === 'error' || !parsedData.articles) {
+        throw new Error(parsedData.message || 'API error');
+      }
+      console.log('Fetched from NewsAPI:', parsedData);
+      this.setState({
+        articles: parsedData.articles || [],
+        loading: false,
+        totalResults: parsedData.totalResults,
+      });
+    } catch (err) {
+      console.warn('NewsAPI failed (likely CORS/auth on free plan). Loading local sample data.', err.message);
+      // Fallback: load local sampleFile.json
+      try {
+        let res = await fetch('/sampleFile.json');
+        let localData = await res.json();
+        this.setState({
+          articles: localData.articles || [],
+          loading: false,
+          totalResults: localData.totalResults || localData.articles?.length || 0,
+        });
+      } catch (localErr) {
+        console.error('Failed to load local sample data too:', localErr);
+        this.setState({ loading: false, articles: [] });
+      }
+    }
+  }
+
+  async componentDidMount() {
+    await this.fetchNews(this.state.page);
   }
 
   handleNext = async () => {
@@ -54,34 +74,18 @@ export class News extends Component {
         Math.ceil(this.state.totalResults / this.props.pagesize)
       )
     ) {
-      let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=4ab9fbfc99954701b7283e16992751a9&page=${
-        this.state.page + 1
-      }&pageSize=${this.props.pagesize}`;
-      this.setState({ loading: true });
-      let data = await fetch(url);
-      let parsedData = await data.json();
-
-      this.setState({
-        page: this.state.page + 1,
-        articles: parsedData.articles,
-        loading: false,
-      });
+      const nextPage = this.state.page + 1;
+      await this.fetchNews(nextPage);
+      this.setState({ page: nextPage });
     }
   };
 
   handlePrev = async () => {
-    let url = `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=4ab9fbfc99954701b7283e16992751a9&page=${
-      this.state.page - 1
-    }&pageSize=${this.props.pagesize}`;
-    this.setState({ loading: true });
-    let data = await fetch(url);
-    let parsedData = await data.json();
-
-    this.setState({
-      page: this.state.page - 1,
-      articles: parsedData.articles,
-      loading: false,
-    });
+    if (this.state.page > 1) {
+      const prevPage = this.state.page - 1;
+      await this.fetchNews(prevPage);
+      this.setState({ page: prevPage });
+    }
   };
   render() {
     return (
